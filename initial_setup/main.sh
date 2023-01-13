@@ -1,4 +1,5 @@
 #!/bin/bash
+# Parameters
 
 project="eks-test"
 environment="dev"
@@ -48,6 +49,28 @@ export AWS_REGION=$region
 export EKS_ENVIRONMENT=$environment
 export project=$project
 
+## Functions
+set_pod_execution_role () {
+    POD_EXECUTION_ROLE_ARN=$(aws iam get-role --role-name $POD_EXECUTION_ROLE_NAME --query 'Role.Arn' --output text)
+}
+
+## Functions
+create_pod_execution_role () {
+    echo "Creating Pod Execution Role"
+
+    ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+
+    echo $POD_EXECUTION_ROLE_NAME
+    POD_EXECUTION_ROLE_ARN=$(aws iam create-role \
+        --role-name $POD_EXECUTION_ROLE_NAME \
+        --assume-role-policy-document "{ \"Version\": \"2012-10-17\", \"Statement\": [{\"Effect\": \"Allow\", \"Principal\": {\"Service\": \"eks-fargate-pods.amazonaws.com\"}, \"Action\": \"sts:AssumeRole\", \"Condition\": { \"ArnLike\": { \"aws:SourceArn\": [ \"arn:aws:eks:*:$ACCOUNT_ID:fargateprofile/$cluster/*\"]}}}]}" \
+        --query 'Role.Arn' --output text) 
+    aws iam wait role-exists --role-name $POD_EXECUTION_ROLE_NAME
+    aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy --role-name $POD_EXECUTION_ROLE_NAME
+
+    # Arbitrary wait to allow IAM Role to be fully available
+    sleep 5
+}
 ## Phase One: Initial Setup
 
 if [[ -z $vpc_id ]]; then
@@ -97,22 +120,8 @@ if [[ -z $cluster ]]; then
     echo "Waiting for $cluster to become available. This will take a while..."
     aws eks wait cluster-active --name $cluster
 fi
-
-echo "Creating Pod Execution Role"
-
-ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
-
 POD_EXECUTION_ROLE_NAME="$environment-$project-pod-execution-role"
-echo $POD_EXECUTION_ROLE_NAME
-POD_EXECUTION_ROLE_ARN=$(aws iam create-role \
-    --role-name $POD_EXECUTION_ROLE_NAME \
-    --assume-role-policy-document "{ \"Version\": \"2012-10-17\", \"Statement\": [{\"Effect\": \"Allow\", \"Principal\": {\"Service\": \"eks-fargate-pods.amazonaws.com\"}, \"Action\": \"sts:AssumeRole\", \"Condition\": { \"ArnLike\": { \"aws:SourceArn\": [ \"arn:aws:eks:*:$ACCOUNT_ID:fargateprofile/$cluster/*\"]}}}]}" \
-    --query 'Role.Arn' --output text) 
-aws iam wait role-exists --role-name $POD_EXECUTION_ROLE_NAME
-aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy --role-name $POD_EXECUTION_ROLE_NAME
-
-# Arbitrary wait to allow IAM Role to be fully available
-sleep 5
+set_pod_execution_role || create_pod_execution_role
 
 echo "Creating fargate profile on $cluster...."
 ./create_fargate_profile.sh --namespaces default,system --private_subnets $PRIVATE_SUBNETS --execution_role_arn $POD_EXECUTION_ROLE_ARN --cluster $cluster 

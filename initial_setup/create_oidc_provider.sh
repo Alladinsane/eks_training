@@ -41,7 +41,7 @@ oidc_domain=$(echo $endpoint | awk -F/ '{print $3}')
 # Fetch fingerprints for all the certs for the OIDC domain
 SHA1_string=$(echo "" | openssl s_client -showcerts -connect $oidc_domain:443 2>&1 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p;/-END CERTIFICATE-/a\\x0' | sed -e '$ d' | xargs -0rl -I% sh -c "echo '%' | openssl x509 -subject -issuer -fingerprint -noout" | tail -1)
 
-# Grab last fingerprint(i.e. top level CA), trim and spit so we have only the hash with no colons
+# Grab last fingerprint(i.e. top level CA), trim and split so we have only the hash with no colons
 IFS="=" read -a string_array <<< $SHA1_string
 thumbprint=$(echo ${string_array[-1]} | sed s/://g)
 

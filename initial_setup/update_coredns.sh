@@ -2,7 +2,7 @@
 
 function usage {
     echo ""
-    echo "Updates coreDns for Fargate."
+    echo "Updates coreDns for fargate."
     echo ""
     echo "usage: create_eks_cluster.sh --name string --vpc_id string"
     echo ""
@@ -40,12 +40,16 @@ elif [[ -z $private_subnets ]]; then
     die "Missing parameter --private_subnets"
 fi
 
+subnets=$(echo $private_subnets | tr ',' ' ')
+
 aws eks create-fargate-profile \
     --fargate-profile-name coredns \
     --cluster-name $cluster \
     --pod-execution-role-arn $execution_role_arn \
     --selectors namespace=kube-system,labels={k8s-app=kube-dns} \
-    --subnets $private_subnets
+    --subnets $subnets
+
+aws eks wait fargate-profile-active --cluster-name $cluster --fargate-profile-name coredns
 
 kubectl patch deployment coredns \
     -n kube-system \

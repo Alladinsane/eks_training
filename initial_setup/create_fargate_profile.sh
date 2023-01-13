@@ -44,16 +44,18 @@ fi
 
 IFS="," read -a namespace_array <<< $namespaces
 
-
 selector_list=()
-
 for namespace in "${namespace_array[@]}"; do
     selector_list+=("\"namespace\"=\"$namespace\" ")
 done
+
+echo $selector_list
+
+subnets=$(echo $private_subnets | tr ',' ' ')
 
 aws eks create-fargate-profile \
     --fargate-profile-name $EKS_ENVIRONMENT-$project-fargate-profile \
     --cluster-name $cluster \
     --pod-execution-role-arn $execution_role_arn \
-    --subnets  subnet-0ee4f55b940f62d63 subnet-087a68c414d4bd888\
+    --subnets $subnets \
     --selector "namespace"="default" "namespace"="system"
