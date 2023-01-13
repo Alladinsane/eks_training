@@ -47,11 +47,13 @@ aws eks create-fargate-profile \
     --cluster-name $cluster \
     --pod-execution-role-arn $execution_role_arn \
     --selectors namespace=kube-system,labels={k8s-app=kube-dns} \
-    --subnets $subnets
+    --subnets $subnets \
+    --no-paginate
 
+echo "Waiting for coredns to become active..."
 aws eks wait fargate-profile-active --cluster-name $cluster --fargate-profile-name coredns
 
-kubectl patch deployment coredns \
-    -n kube-system \
-    --type json \
-    -p='[{"op": "remove", "path": "/spec/template/metadata/annotations/eks.amazonaws.com~1compute-type"}]'
+# kubectl patch deployment coredns \
+#     -n kube-system \
+#     --type json \
+#     -p='[{"op": "remove", "path": "/spec/template/metadata/annotations/eks.amazonaws.com~1compute-type"}]'

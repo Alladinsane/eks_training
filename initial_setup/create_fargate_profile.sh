@@ -58,4 +58,8 @@ aws eks create-fargate-profile \
     --cluster-name $cluster \
     --pod-execution-role-arn $execution_role_arn \
     --subnets $subnets \
-    --selector "namespace"="default" "namespace"="system"
+    --selector "namespace"="default" "namespace"="system" \
+    --no-paginate
+
+echo "Waiting for fargate profile to become active..."
+aws eks wait fargate-profile-active --cluster-name $cluster --fargate-profile-name $EKS_ENVIRONMENT-$project-fargate-profile

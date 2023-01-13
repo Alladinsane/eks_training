@@ -119,7 +119,27 @@ if [[ -z $cluster ]]; then
     echo ""
     echo "Waiting for $cluster to become available. This will take a while..."
     aws eks wait cluster-active --name $cluster
+
+    cluster_endpoint=$(aws eks describe-cluster \
+        --region $AWS_REGION \
+        --name $cluster \
+        --query "cluster.endpoint" \
+        --output text)
+
+    certificate_data=$(aws eks describe-cluster \
+        --region $AWS_REGION \
+        --name $cluster \
+        --query "cluster.certificateAuthority.data" \
+        --output text)
+
+    echo "Adding $cluster to kube context..."
+    aws eks update-kubeconfig --name $cluster --alias $cluster
+    echo "${KUBECONFIG}" > ~/.kube/config
+    kubectl config set-context $cluster
+
 fi
+
+
 POD_EXECUTION_ROLE_NAME="$environment-$project-pod-execution-role"
 set_pod_execution_role || create_pod_execution_role
 
