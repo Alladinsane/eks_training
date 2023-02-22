@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 function usage {
     echo ""
@@ -53,7 +54,14 @@ aws eks create-fargate-profile \
 echo "Waiting for coredns to become active..."
 aws eks wait fargate-profile-active --cluster-name $cluster --fargate-profile-name coredns
 
-# kubectl patch deployment coredns \
-#     -n kube-system \
-#     --type json \
-#     -p='[{"op": "remove", "path": "/spec/template/metadata/annotations/eks.amazonaws.com~1compute-type"}]'
+echo "Adding $EKS_ENVIRONMENT-$project-cluster to default kubeconfig as $EKS_ENVIRONMENT-$project..."
+aws eks update-kubeconfig --name $EKS_ENVIRONMENT-$project-cluster --alias $EKS_ENVIRONMENT-$project 
+
+echo "Switching contexts to $EKS_ENVIRONMENT-$project..."
+kubectl config set-context $EKS_ENVIRONMENT-$project
+
+echo "Patching coredns..."
+kubectl patch deployment coredns \
+    -n kube-system \
+    --type json \
+    -p='[{"op": "remove", "path": "/spec/template/metadata/annotations/eks.amazonaws.com~1compute-type"}]'

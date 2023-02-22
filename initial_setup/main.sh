@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 # Parameters
 
 project="eks-test"
@@ -105,7 +106,9 @@ PRIVATE_SUBNETS=$(aws ec2 describe-subnets \
     --query 'Subnets[?MapPublicIpOnLaunch==`false`].SubnetId' \
     --output text | sed -E 's/\s+/,/g')
 
-echo $PRIVATE_SUBNETS
+echo "PRIVATE_SUBNETS=$PRIVATE_SUBNETS"
+
+POD_EXECUTION_ROLE_NAME="$environment-$project-pod-execution-role"
 
 if [[ -z $cluster ]]; then
     echo ""
@@ -113,8 +116,7 @@ if [[ -z $cluster ]]; then
     
     echo ""
     echo "Creating new EKS cluster in $vpc_id..."
-
-    cluster=$(./create_eks_cluster.sh --private_subnets $PRIVATE_SUBNETS)
+    cluster=$(./create_eks_cluster.sh --private_subnets $PRIVATE_SUBNETS --project $project)
 
     echo ""
     echo "Waiting for $cluster to become available. This will take a while..."
@@ -134,19 +136,18 @@ if [[ -z $cluster ]]; then
 
     echo "Adding $cluster to kube context..."
     aws eks update-kubeconfig --name $cluster --alias $cluster
-    echo "${KUBECONFIG}" > ~/.kube/config
     kubectl config set-context $cluster
-
+    create_pod_execution_role
+    echo "Creating an Open Id Identity Provider for the cluster..."
+    ./create_oidc_provider.sh --cluster $cluster
+else
+    echo "Using eks cluster $cluster..."
+    echo "Checking for execution role..."
+    set_pod_execution_role
 fi
-
-
-POD_EXECUTION_ROLE_NAME="$environment-$project-pod-execution-role"
-set_pod_execution_role || create_pod_execution_role
 
 echo "Creating fargate profile on $cluster...."
 ./create_fargate_profile.sh --namespaces default,system --private_subnets $PRIVATE_SUBNETS --execution_role_arn $POD_EXECUTION_ROLE_ARN --cluster $cluster 
 
-echo "Creating and Open Id Identity Provider..."
-./create_oidc_provider.sh --cluster $cluster
-
+echo "Updating CoreDNS..."
 ./update_coredns.sh --private_subnets $PRIVATE_SUBNETS --cluster $cluster --execution_role_arn $POD_EXECUTION_ROLE_ARN --private_subnets $PRIVATE_SUBNETS

@@ -46,3 +46,18 @@ IFS="=" read -a string_array <<< $SHA1_string
 thumbprint=$(echo ${string_array[-1]} | sed s/://g)
 
 oidc_arn=$(aws iam create-open-id-connect-provider --url $endpoint --thumbprint-list $thumbprint --client-id-list 'sts.amazon.com' --query 'OpenIDConnectProviderArn') 
+
+IFS="oidc-provider" read -a string_array <<< $oidc_arn
+provider_name=${string_array[-1]}
+
+# {
+#   "identityProviderConfigName": "$provider_name",
+#   "issuerUrl": "$endpoint",
+#   "clientId": "sts.amazonaws.com",
+#   "usernameClaim": "string",
+#   "usernamePrefix": "string",
+#   "groupsClaim": "string",
+#   "groupsPrefix": "string",
+#   "requiredClaims": {"string": "string"
+#     ...}
+# }

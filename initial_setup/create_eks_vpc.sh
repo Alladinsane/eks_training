@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Creates a VPC for EKS using the default getting started template from AWS. Wait for stack to finish creating, 
 # returns the Id of the newly created VPC

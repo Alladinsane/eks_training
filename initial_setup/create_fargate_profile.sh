@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e 
+
 function usage {
     echo ""
     echo "Creates a Fargate profile for an EKS cluster."
